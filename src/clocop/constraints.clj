@@ -5,31 +5,44 @@
     (JaCoP.constraints XeqY
                        XeqC
                        XltY
+                       XltC
                        XlteqY
+                       XlteqC
                        XgtY
+                       XgtC
                        XgteqY
+                       XgteqC
                        XneqY
                        XneqC
                        Alldifferent
                        Element)))
 
-(defn =%
-  "Specifies an equality constraint. At least one of the arguments must be a Var. The non-Var argument (if any) is a constant integer that will be assigned to the Var."
-  [item1 item2]
-  (case [(instance? Var item1) (instance? Var item2)]
-    [true true] (XeqY. item1 item2)
-    [true false] (XeqC. item1 item2)
-    [false true] (XeqC. item2 item1)
-    (throw (IllegalArgumentException. "=%: Expected at least one argument to be a Var."))))
+(defmacro def-primitive-constraint
+  "Private macro to help with defining the many constraints."
+  [name docstring [& args] & clauses]
+  (let [clauses (map vec (partition 2 clauses))
+        clauses (apply concat (for [[var? constraint-type] clauses]
+                                [var? (if (sequential? constraint-type)
+                                        constraint-type
+                                        `(new ~constraint-type ~@args))]))]
+    `(defn ~name ~docstring [~@args]
+       (case (vec (map (partial instance? Var) (list ~@args)))
+         ~@clauses
+         (throw (IllegalArgumentException. "Wrong combination of constants and Vars"))))))
 
-(defn !=%
-  "Specifies an not-equal constraint. At least one of the arguments must be a Var. The non-Var argument (if any) is a constant integer that will be assigned to not be equal to the Var."
-  [item1 item2]
-  (case [(instance? Var item1) (instance? Var item2)]
-    [true true] (XneqY. item1 item2)
-    [true false] (XneqC. item1 item2)
-    [false true] (XneqC. item2 item1)
-    (throw (IllegalArgumentException. "!=%: Expected at least one argument to be a Var."))))
+(def-primitive-constraint =%
+  "Specifies an equality constraint. Can support equality between two int vars, or between an int var and a constant (in either order)."
+  [X Y]
+  [true true] XeqY
+  [true false] XeqC
+  [false true] (XeqC. Y X))
+
+(def-primitive-constraint !=%
+  "Specifies an not-equal constraint. Can support inequality between two int vars, or between an int var and a constant (in either order)."
+  [X Y]
+  [true true] XneqY
+  [true false] XneqC
+  [false true] (XneqC. Y X))
 
 (defn all-different%
   "Specifies an all-different constraint."
@@ -49,19 +62,23 @@ Another important thing is that by default, this array lookup is one-based. Add 
       (Element. i array x 1)
       (Element. i array x))))
 
-(defn <%
-  "Specifies that X must be less than Y."
+(def-primitive-constraint <%
+  "Specifies that X < Y. Y can be a var or a constant."
   [X Y]
-  (XltY. X Y))
-(defn <=%
-  "Specifies that X must be less than or equal to Y."
+  [true true] XltY
+  [true false] XltC)
+(def-primitive-constraint >%
+  "Specifies that X > Y. Y can be a var or a constant."
   [X Y]
-  (XlteqY. X Y))
-(defn >%
-  "Specifies that X must be greater than Y."
+  [true true] XgtY
+  [true false] XgtC)
+(def-primitive-constraint <=%
+  "Specifies that X <= Y. Y can be a var or a constant."
   [X Y]
-  (XgtY. X Y))
-(defn >=%
-  "Specifies that X must be greater than or equal to Y."
+  [true true] XlteqY
+  [true false] XlteqC)
+(def-primitive-constraint >=%
+  "Specifies that X >= Y. Y can be a var or a constant."
   [X Y]
-  (XgteqY. X Y))
+  [true true] XgteqY
+  [true false] XgteqC)
