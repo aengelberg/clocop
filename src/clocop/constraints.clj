@@ -2,7 +2,9 @@
   "A namespace for the various constraints you can use."
   (:import
     (JaCoP.core Var IntVar)
-    (JaCoP.constraints XeqY
+    (JaCoP.constraints PrimitiveConstraint
+                       
+                       XeqY
                        XeqC
                        XltY
                        XltC
@@ -24,6 +26,7 @@
                        Alldifferent
                        Element
                        Count
+                       Reified
                        )))
 
 (defmacro ^:private def-primitive-constraint
@@ -142,4 +145,11 @@ specifies that w_0 * x_0 + w_1 * x_1 + ... = Z"
 (defn all-different%
   "Specifies an all-different constraint."
   [vars]
-  (Alldifferent. (into-array IntVar vars))) 
+  (Alldifferent. (into-array IntVar vars)))
+
+(defn reified%
+  "Takes a primitive constraint and a variable, and specifies that the variable is equal to the 0/1 value of whether the given constraint is true.
+
+Note: the sub-constraint given does not have to (and probably shouldn't) be applied to your Store with \"constrain!\"."
+  [^PrimitiveConstraint constraint ^IntVar b]
+  (Reified. constraint b))
