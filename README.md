@@ -12,15 +12,15 @@ There is no easily addable Lein dependency yet.
 
 If you're curious, here's some sample code based on the API I have so far.
 
-    (use 'clocop.core)
-    (require ['clocop.constraints :as 'c])
+    (use 'clocop.core
+         'clocop.constraints)
     
     ; Variable X is between 1 and 2. Variable Y is between 3 and 4.
     ; We know that X + Y = 6. What are X and Y?
-    (with-store (store)
+    (with-store (store)           ; initialize the variable store
       (let [x (int-var "x" 1 2)
-            y (int-var "y" 3 4)]
-        (constrain! (c/+% x y 6))
-        (solve!)))
+            y (int-var "y" 3 4)]  ; initialize the variables
+        (constrain! (+% x y 6))   ; specify x + y = 6
+        (solve!)))                ; searches for a solution
 
     => {"x" 2, "y" 4}
