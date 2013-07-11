@@ -27,11 +27,9 @@ Spaces will be removed from each line."
                       j (range 3)]
                   (get-in vars [(+ (* a 3) i)
                                 (+ (* b 3) j)])))
-        constraints (concat
-                      (map c/all-different% rows)
-                      (map c/all-different% cols)
-                      (map c/all-different% areas))
-        solved (solve store constraints)]
+        _ (doseq [group (concat rows cols areas)]
+            (constrain! store (c/all-different% group)))
+        solved (solve! store)]
     (vec (for [i (range 9)]
            (apply str (for [j (range 9)]
                         (get solved (str "cell" i "_" j))))))))
