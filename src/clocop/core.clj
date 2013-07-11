@@ -61,6 +61,8 @@ Note that the optional \"name\" field (which is an input-order-select by default
         2 (IntVar. store (first args) (second args))
         3 (IntVar. store (first args) (second args) (nth args 2))))))
 
+(alter-meta! #'int-var assoc :arglists '([store & args]))
+
 (defn constrain!
   "Given a store and a constraint (created with clocop.constraints, or implements JaCoP.constraints.Constraint), imposes the constraint on that store.
 This doesn't actually do much until you run the \"solve!\" function."
