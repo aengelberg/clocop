@@ -9,6 +9,23 @@
                          IndomainMin
                          )))
 
+(def ^:dynamic *current-store*
+  "A (private) dynamic variable used in conjunction with the with-store function."
+  nil)
+
+(defn- get-current-store []
+  (if *current-store*
+    *current-store*
+    (throw (Exception. "Failed to fall back on a with-store call"))))
+
+(defmacro with-store
+  "Given a store, allows you to NOT put the store as the first argument to functions like int-var, constrain!, solve!, etc.
+
+This macro uses bindings underneath, so you can leave out the store in different functions as long as it's eventually wrapped in with-store."
+  [store & body]
+  `(binding [*current-store* ~store]
+     ~@body))
+
 (defn ^Store store
   "Makes a JaCoP \"Store\" object, which is the key concept in constraint programming.
 No options and configurations are required for the Store itself, but you will connect all the variables, constraints, and searchers to it eventually."
@@ -35,17 +52,24 @@ Allowed argument lists:
 - (int-var store name domain)
 
 Note that the optional \"name\" field (which is an input-order-select by default) is only used for the outputted logs, and not at all necessary to function internally."
-  [store & args]
-  (case (count args)
-    1 (IntVar. store (first args))
-    2 (IntVar. store (first args) (second args))
-    3 (IntVar. store (first args) (second args) (nth args 2))))
+  [& args]
+  (if (not (instance? Store (first args)))
+    (recur (cons (get-current-store) args))
+    (let [[store & args] args]
+      (case (count args)
+        1 (IntVar. store (first args))
+        2 (IntVar. store (first args) (second args))
+        3 (IntVar. store (first args) (second args) (nth args 2))))))
 
 (defn constrain!
   "Given a store and a constraint (created with clocop.constraints, or implements JaCoP.constraints.Constraint), imposes the constraint on that store.
 This doesn't actually do much until you run the \"solve!\" function."
   ([^Store store, ^JaCoP.constraints.Constraint constraint]
-    (.impose store constraint)))
+    (.impose store constraint))
+  ([constraint]
+    (constrain! (get-current-store) constraint)))
+
+(alter-meta! #'constrain! assoc :arglists '([store constraint]))
 
 (defn solve!
   "Given a store (which has been presumably constrained in some way), finds one (or every) solution. Solutions are returned in the form of a map, from the var names to their values.
@@ -61,39 +85,44 @@ NOTE: Weird behavior occurs when reusing stores and constraints.
 
 Although this function returns something, the function name is marked with an exclamation point to remind you that this function shouldn't be reused on the same store.
 "
-  [store & {:as args}]
-  (let [num-solutions (or (:solutions args) :one)
-        selector (or (:selector args)
-                     (InputOrderSelect. store (.vars store) (IndomainMin.)))
-        vars-to-return (or (:vars-to-return args) (fn [arg] true))
-        minimize (:minimize args)
-        search (DepthFirstSearch.)
-        listener (.getSolutionListener search)
-        _ (.setPrintInfo search false)
-        _ (when (= num-solutions :all)
-            (.searchAll listener true))
-        _ (when minimize
-            (.setOptimize search true)
-            (.setCostVar search minimize))
-        _ (.recordSolutions listener true)
-        labeling? (.labeling search store selector)
-        ]
-    (cond
-      (not labeling?) nil
-      :else (let [solutions (for [i (range 1 (inc (.solutionsNo listener)))
-                                  :let [domain-array (.getSolution listener i)]]
-                              (let [vars (.getVariables listener)
-                                    varnames (map #(.id %) vars)
-                                    domain-vals (for [domain domain-array]
-                                                  (.getElementAt domain 0))
-                                    result (zipmap varnames domain-vals)]
-                                (into {} (for [[k v] result :when (vars-to-return k)]
-                                           [k v]))))]
-              
-              (if (= num-solutions :one)
-                (first solutions)
-                solutions)))))
+  [& args]
+  (if (not (instance? Store (first args)))
+    (recur (cons (get-current-store) args))
+    (let [[store & args] args
+          num-solutions (or (:solutions args) :one)
+          selector (or (:selector args)
+                       (InputOrderSelect. store (.vars store) (IndomainMin.)))
+          vars-to-return (or (:vars-to-return args) (fn [arg] true))
+          minimize (:minimize args)
+          search (DepthFirstSearch.)
+          listener (.getSolutionListener search)
+          _ (.setPrintInfo search false)
+          _ (when (= num-solutions :all)
+              (.searchAll listener true))
+          _ (when minimize
+              (.setOptimize search true)
+              (.setCostVar search minimize))
+          _ (.recordSolutions listener true)
+          labeling? (.labeling search store selector)
+          ]
+      (cond
+        (not labeling?) nil
+        :else (let [solutions (for [i (range 1 (inc (.solutionsNo listener)))
+                                    :let [domain-array (.getSolution listener i)]]
+                                (let [vars (.getVariables listener)
+                                      varnames (map #(.id %) vars)
+                                      domain-vals (for [domain domain-array]
+                                                    (.getElementAt domain 0))
+                                      result (zipmap varnames domain-vals)]
+                                  (into {} (for [[k v] result :when (vars-to-return k)]
+                                             [k v]))))]
+                
+                (if (= num-solutions :one)
+                  (first solutions)
+                  solutions))))))
 
+(alter-meta! #'solve! assoc :arglists '([store & keyargs]))
+  
 ;(def s (store))
 ;(def vars [(int-var s "a" 1 2)
 ;           (int-var s "b" 3 4)])

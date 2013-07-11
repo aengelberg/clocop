@@ -10,29 +10,29 @@
 Blank spaces can be marked with any non-numeric, non-space character.
 Spaces will be removed from each line."
   [board]
-  (let [board (vec (map vec (map (partial filter #(not= % \space)) board)))
-        store (store)
-        vars (vec (for [i (range 9)]
-                    (vec (for [j (range 9)]
-                           (let [hint (try (Integer/parseInt (str (get-in board [i j])))
-                                        (catch Exception e nil))]
-                             (if hint
-                               (int-var store (str "cell" i "_" j) hint hint)
-                               (int-var store (str "cell" i "_" j) 1 9)))))))
-        rows vars
-        cols (apply map vector vars)
-        areas (for [a (range 3)
-                    b (range 3)]
-                (for [i (range 3)
-                      j (range 3)]
-                  (get-in vars [(+ (* a 3) i)
-                                (+ (* b 3) j)])))
-        _ (doseq [group (concat rows cols areas)]
-            (constrain! store (c/all-different% group)))
-        solved (solve! store)]
-    (vec (for [i (range 9)]
-           (apply str (for [j (range 9)]
-                        (get solved (str "cell" i "_" j))))))))
+  (with-store (store)
+    (let [board (vec (map vec (map (partial filter #(not= % \space)) board)))
+          vars (vec (for [i (range 9)]
+                      (vec (for [j (range 9)]
+                             (let [hint (try (Integer/parseInt (str (get-in board [i j])))
+                                          (catch Exception e nil))]
+                               (if hint
+                                 (int-var (str "cell" i "_" j) hint hint)
+                                 (int-var (str "cell" i "_" j) 1 9)))))))
+          rows vars
+          cols (apply map vector vars)
+          areas (for [a (range 3)
+                      b (range 3)]
+                  (for [i (range 3)
+                        j (range 3)]
+                    (get-in vars [(+ (* a 3) i)
+                                  (+ (* b 3) j)])))
+          _ (doseq [group (concat rows cols areas)]
+              (constrain! (c/all-different% group)))
+          solved (solve!)]
+      (vec (for [i (range 9)]
+             (apply str (for [j (range 9)]
+                          (get solved (str "cell" i "_" j)))))))))
 
 (defn solve-sudoku-pretty
   [board]
