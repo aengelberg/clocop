@@ -89,6 +89,7 @@ Although this function returns something, the function name is marked with an ex
   (if (not (instance? Store (first args)))
     (recur (cons (get-current-store) args))
     (let [[store & args] args
+          args (apply hash-map args)
           num-solutions (or (:solutions args) :one)
           selector (or (:selector args)
                        (InputOrderSelect. store (.vars store) (IndomainMin.)))
