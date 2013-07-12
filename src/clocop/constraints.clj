@@ -23,6 +23,18 @@
                        Sum
                        SumWeight
                        
+                       XmodYeqZ
+                       
+                       Min
+                       Max
+                       
+                       And
+                       Or
+                       Not
+                       IfThen
+                       IfThenElse
+                       Eq
+                       
                        Alldifferent
                        Element
                        Count
@@ -57,54 +69,41 @@ Automatically throws an error for type groups not covered."
 ;;;;; Equality and inequality constraints ;;;;;
 
 (def-primitive-constraint =%
-  "Specifies an equality constraint. Can support equality between two variables, or between a variable and a constant (in either order)."
+  "(prim) Specifies an equality constraint. Can support equality between two variables, or between a variable and a constant (in either order)."
   [X Y]
   [true true] XeqY
   [true false] XeqC
   [false true] (XeqC. Y X))
 
 (def-primitive-constraint !=%
-  "Specifies an not-equal constraint. Can support negative equality between two variables, or between a variable and a constant (in either order)."
+  "(prim) Specifies an not-equal constraint. Can support negative equality between two variables, or between a variable and a constant (in either order)."
   [X Y]
   [true true] XneqY
   [true false] XneqC
   [false true] (XneqC. Y X))
 
-(defn element-of%
-  "Given an array (any seq) and two vars (i and x), specifies that the ith item in the array is equal to x.
-Note that the array can either contain only variables, or contain only concrete numbers.
-
-Another important thing is that by default, this array lookup is one-based. Add \":zero-based true\" to make it zero-based."
-  [array i x & {zero-based :zero-based}]
-  (let [array (if (instance? Var (first array))
-                (into-array IntVar array)
-                (int-array array))]
-    (if zero-based
-      (Element. i array x 1)
-      (Element. i array x))))
-
 (def-primitive-constraint <%
-  "Specifies that X < Y. Y can be a variable or a constant."
+  "(prim) Specifies that X < Y. Y can be a variable or a constant."
   [X Y]
   [true true] XltY
   [true false] XltC)
 (def-primitive-constraint >%
-  "Specifies that X > Y. Y can be a variable or a constant."
+  "(prim) Specifies that X > Y. Y can be a variable or a constant."
   [X Y]
   [true true] XgtY
   [true false] XgtC)
 (def-primitive-constraint <=%
-  "Specifies that X <= Y. Y can be a variable or a constant."
+  "(prim) Specifies that X <= Y. Y can be a variable or a constant."
   [X Y]
   [true true] XlteqY
   [true false] XlteqC)
 (def-primitive-constraint >=%
-  "Specifies that X >= Y. Y can be a variable or a constant."
+  "(prim) Specifies that X >= Y. Y can be a variable or a constant."
   [X Y]
   [true true] XgteqY
   [true false] XgteqC)
 
-;;;;; Addition ;;;;;
+;;;;; Arithmetic ;;;;;
 
 (def-primitive-constraint ^:private +%helper
   "dummy docstring"
@@ -114,7 +113,9 @@ Another important thing is that by default, this array lookup is one-based. Add 
   [true false true] XplusCeqZ)
 
 (defn +%
-  "Takes at least three arguments. In a sense, it specifies (= (apply + (butlast args)) (last args)).
+  "(prim/global) Takes at least three arguments. In a sense, it specifies (= (apply + (butlast args)) (last args)).
+
+The returned constraint is primitive when used with three arguments, but a global constraint when used with more than three.
 
 NOTE: While in general you have to only use variables rather than constants, when using only three arguments, i.e. X+Y=Z, then Y or Z (but not both) can be constants."
   ([X Y Z]
@@ -128,28 +129,99 @@ NOTE: While in general you have to only use variables rather than constants, whe
       (Sum. (into-array IntVar left) last))))
 
 (defn weighted-sum%
-  "Given an array of variables x_0, x_1, ... and an array of \"weights\" (constants) w_0, w_1, ... and a variable Z,
+  "(global) Given an array of variables x_0, x_1, ... and an array of \"weights\" (constants) w_0, w_1, ... and a variable Z,
 specifies that w_0 * x_0 + w_1 * x_1 + ... = Z"
   [list-of-x list-of-w Z]
   (SumWeight. (into-array IntVar list-of-x)
               (int-array list-of-w)
               Z))
 
+(defn mod%
+  "(global) Specifies that X mod Y = Z"
+  [X Y Z]
+  (XmodYeqZ. X Y Z))
+
+;;;;; Min and Max ;;;;;
+
+(defn min%
+  "Takes any number of variables. In a sense, it specifies (= (apply min (butlast args)) (last args))."
+  [& args]
+  (Min. (into-array IntVar (butlast args)) (last args)))
+
+(defn max%
+  "Takes any number of variables. In a sense, it specifies (= (apply max (butlast args)) (last args))."
+  [& args]
+  (Max. (into-array IntVar (butlast args)) (last args)))
+
+;;;;; Logic constraints ;;;;;
+
+(defn and%
+  "(prim) An And statement between 0 or more primitive constraints."
+  [& constraints]
+  (And. (into-array PrimitiveConstraint constraints)))
+
+(defn or%
+  "(prim) An Or statement between 0 or more primitive constraints."
+  [& constraints]
+  (Or. (into-array PrimitiveConstraint constraints)))
+
+(defn bicond%
+  "(prim) Given two primitive constraints P and Q, specifies that P <=> Q, or P iff Q."
+  [P Q]
+  (Eq. P Q))
+
+(defn not%
+  "(prim) A \"not\" of a primitive constraint."
+  [P]
+  (Not. P))
+
+(defn if%
+  "(prim) Specifies \"if P then Q else R\" for primitive constraints P, Q, and R. The \"else\" part is optional."
+  ([if then]
+    (IfThen. if then))
+  ([if then else]
+    (IfThenElse. if then else)))
+
+(defn cond%
+  "(prim) Creates a \"cond\"-like statement by connecting if% statements together.
+
+The final \"else\" statement can be used with :else (like in cond) or just as the last argument (like in case and condp)."
+  [& clauses]
+  (case (count clauses)
+    0 (and%)
+    1 (first clauses)
+    (let [[if-this then-this] (take 2 clauses)]
+      (cond
+        (= if-this :else) then-this
+        (empty? (drop 2 clauses)) (if% if-this then-this)
+        :else (if% if-this then-this (apply cond% (drop 2 clauses)))))))
+
 ;;;;; Global constraints ;;;;;
 
-(defn count-occurences%
-  "Specifies that X (a constant) occurs N times (a variable) in an array of variables."
+(defn count-occurrences%
+  "(global) Specifies that X (a constant) occurs N times (a variable) in an array of variables."
   [X N vars]
   (Count. (into-array IntVar vars) N X))
 
 (defn all-different%
-  "Specifies an all-different constraint."
+  "(global) Specifies an all-different constraint."
   [vars]
   (Alldifferent. (into-array IntVar vars)))
 
 (defn reified%
-  "Takes a primitive constraint and a variable, and specifies that the variable is equal to the 0/1 value of whether the given constraint is true.
-
-Note: the sub-constraint given does not have to (and probably shouldn't) be applied to your Store with \"constrain!\"."
+  "(global) Takes a primitive constraint and a variable, and specifies that the variable is equal to the 0/1 value of whether the given constraint is true."
   [^PrimitiveConstraint constraint ^IntVar b]
   (Reified. constraint b))
+
+(defn element-of%
+  "(global) Given an array (any seq) and two vars (i and x), specifies that the ith item in the array is equal to x.
+Note that the array can either contain only variables, or contain only concrete numbers.
+
+Another important thing is that by default, this array lookup is one-based. Add \":zero-based true\" to make it zero-based."
+  [array i x & {zero-based :zero-based}]
+  (let [array (if (instance? Var (first array))
+                (into-array IntVar array)
+                (int-array array))]
+    (if zero-based
+      (Element. i array x 1)
+      (Element. i array x))))
