@@ -55,98 +55,17 @@
 
 ; Sample code: (+% x y := 3)
 
-(defn- typeify
-  [args]
-  (for [x args]
-    (cond
-      (keyword? x) x
-      (instance? Var x) :var
-      (instance? Number x) :num)))
-
-(defn arith%
-  "Given an arithmetic equation (with keywords as the operators), constructs the corresponding JaCoP built-in constraint.
-Operations supported:
-:+ (primitive), :* (non-primitive), :div (non-primitive), :mod (non-primitive), :exp (non-primitive)
-Sample usage: (arith% [:+ x y] := z)
-Supports most intuitive combinations of variables and numbers (plus a few in conjunction with inequalities)."
-  [[op & args :as expr] compare z]
-  (let [types (typeify args)]
-    (match [(vec expr) compare z]
-      [[:+ x y] := z] (case (typeify [x y z])
-                        [:var :var :var] (XplusYeqZ. x y z)
-                        [:var :var :num] (XplusYeqC. x y z)
-                        [:var :num :var] (XplusCeqZ. x y z))
-      [[:+ x y q] := z] (case (typeify [x y q z])
-                          [:var :var :var :var] (XplusYplusQeqZ. x y q z)
-                          [:var :var :num :var] (XplusYplusCeqZ. x y q z))
-      [[:+ x y] :<= z] (XplusYlteqZ. x y z)
-      [[:+ x y q] :> c] (XplusYplusQgtC. x y q c)
-      
-      [[:* x y] := z] (case (typeify [x y z])
-                        [:var :var :var] (XmulYeqZ. x y z)
-                        [:var :num :var] (XmulCeqZ. x y z))
-      
-      [[:div x y] := z] (XdivYeqZ. x y z)
-      
-      [[:mod x y] := z] (XmodYeqZ. x y z)
-      
-      [[:exp x y] := z] (XexpYeqZ. x y z))))
-
-(defn sum%
-  "(not prim) Specifies that the sum of a bunch of variables equals another variable.
-Sample usage: (sum% [a b c d e] := z)
-All arguments must be variables, not numbers."
-  [args eq z]
-  (Sum. (into-array IntVar args)
-        z))
-
-(defn compare%
-  "(prim) Specifies x = y, x < y, x > y, x <= y, x >= y, x != y.
-Sample usage: (compare% :> x 3) or (compare% := a b)
-You can also substitute either x or y with a number."
-  [comparator x y]
-  (let [types (typeify [x y])]
-    (case comparator
-      := (case types
-           [:var :var] (XeqY. x y)
-           [:var :num] (XeqC. x y)
-           [:num :var] (recur := y x))
-      :< (case types
-           [:var :var] (XltY. x y)
-           [:var :num] (XltC. x y)
-           [:num :var] (recur :> y x))
-      :> (case types
-           [:var :var] (XgtY. x y)
-           [:var :num] (XgtC. x y)
-           [:num :var] (recur :< y x))
-      :<= (case types
-            [:var :var] (XlteqY. x y)
-            [:var :num] (XlteqC. x y)
-            [:num :var] (recur :>= y x))
-      :>= (case types
-            [:var :var] (XgteqY. x y)
-            [:var :num] (XgteqC. x y)
-            [:num :var] (recur :<= y x))
-      :!= (case types
-            [:var :var] (XneqY. x y)
-            [:var :num] (XneqY. x y)
-            [:num :var] (recur :!= y x))
-      (throw (IllegalArgumentException. (str "Operation \"" (name comparator) "\" not supported"))))))
-
 (defn- cartesian-product
   [lists]
   (cond
     (empty? lists) '(())
-    :else (let [results (cartesian-product (rest lists))]
-            (apply concat
-                   (for [i (first lists)]
-                     (map (partial cons i) results))))))
+    :else (let [next-cart (cartesian-product (rest lists))]
+            (apply concat (for [i (first lists)]
+                            (map (partial cons i) next-cart))))))
 
 (defn- pipe-helper
-  [single-expr]
-  (let [store (core/get-current-store)
-        [op & args] single-expr
-        domain-min (fn [x]
+  [fake-op real-op args]
+  (let [domain-min (fn [x]
                      (if (instance? IntVar x)
                        (.min (.dom x))
                        x))
@@ -156,39 +75,114 @@ You can also substitute either x or y with a number."
                        x))
         mins (map domain-min args)
         maxes (map domain-max args)
-        real-op (case op :+ + :* * :div / :mod mod :exp #(Math/pow %1 %2))
         key-points (for [comb (cartesian-product (map vector mins maxes))]
                      (apply real-op comb))
-        [final-min final-max] [(java.lang.Math/floor (double (apply min key-points)))
-                               (java.lang.Math/ceil (double (apply max key-points)))]
-        new-var (core/int-var (str "_(" (name op) " " (clojure.string/join " "
-                                                                           (map #(if (instance? IntVar %)
-                                                                                   (.id %)
-                                                                                   %) args)) ")")
-                              final-min final-max)
-        _ (core/constrain! (arith% single-expr := new-var))]
-    new-var))
+        [final-min final-max] [(apply min key-points) (apply max key-points)]]
+    (core/int-var (str "_(" (name fake-op) " "
+                       (clojure.string/join " " (map #(if (instance? IntVar %) (.id %) %)
+                                                     args))
+                       ")")
+                  final-min final-max)))
 
-(defn pipe
-  "Given an arithmetic expression (with no equals sign), returns an auxiliary variable that is equal to that equation.
+(defn- typeify
+  [args]
+  (vec
+    (for [x args]
+      (cond
+        (keyword? x) x
+        (instance? Var x) :var
+        (instance? Number x) :num))))
 
-Note: this function will add some constraints and variables to your store.
+(defn $+
+  "Given two or more variables, returns a new variable that is constrained to equal the sum of those variables.
 
-Example:
-(with-store (store) (pipe [:+ [:* x y] 2]))  ; this example uses vectors but any sequence will do
-  => <IntVar>"
-  [expr]
-  (let [store (core/get-current-store)]
-    (if (not (sequential? expr))
-      expr
-      (let [expr (for [subexpr expr]
-                   (pipe subexpr))]
-        (pipe-helper expr)))))
+If you use two or three variables, this function supports some intuitive combinations of variables and numbers.
+(i.e. ($+ x 1))"
+  ([x y]
+    (core/get-current-store)
+    (let [accepted #{[:var :var] [:var :num]}
+          piped (when (accepted (typeify [x y]))
+                  (pipe-helper :+ + [x y]))]
+      (case (typeify [x y])
+        [:var :var] (do (core/constrain! (XplusYeqZ. x y piped)) piped)
+        [:var :num] (do (core/constrain! (XplusCeqZ. x y piped)) piped)
+        [:num :var] (recur y x))))
+  ([x y z]
+    (core/get-current-store)
+    (let [accepted #{[:var :var :var] [:var :var :num]}
+          piped (when (accepted (typeify [x y z]))
+                  (pipe-helper :+ + [x y z]))]
+      (case (typeify [x y z])
+        [:var :var :var] (do (core/constrain! (XplusYplusQeqZ. x y z piped)) piped)
+        [:var :var :num] (do (core/constrain! (XplusYplusCeqZ. x y z piped)) piped)
+        [:var :num :var] (recur x z y)
+        [:num :var :var] (recur y z x))))
+  ([a b c d & more]
+    (core/get-current-store)
+    (let [args (list* a b c d more)
+          domain-min (fn [x]
+                     (if (instance? IntVar x)
+                       (.min (.dom x))
+                       x))
+          domain-max (fn [x]
+                       (if (instance? IntVar x)
+                         (.max (.dom x))
+                         x))
+          total-min (apply + (map domain-min args))
+          total-max (apply + (map domain-max args))
+          z (core/int-var (str "_(+ "
+                               (clojure.string/join " " (map #(if (instance? IntVar %) (.id %) %)
+                                                             args))
+                               ")") total-min total-max)]
+      (core/constrain! (Sum. (into-array IntVar args)
+                             z)))))
 
-(defn constrain-arith!
-  "Given an arithmetic equation, constrains that equation onto the given store.
-Example: (with-store (store) (constrain-arith! [:= x y] [:= [:+ x 2] [:* y 3]])"
-  [& exprs]
-  (let [store (core/get-current-store)]
-    (doseq [[eq & args] exprs]
-      (core/constrain! (apply compare% eq (map pipe args))))))
+(defn $*
+  "Given two variables (or a variable and a number), returns a new variable that is constrained to be equal to the product of the two arguments."
+  [x y]
+  (core/get-current-store)
+  (let [accepted #{[:var :var] [:var :num]}
+        piped (when (accepted (typeify [x y]))
+                (pipe-helper :* * [x y]))]
+    (case (typeify [x y])
+      [:var :var] (do (core/constrain! (XmulYeqZ. x y piped)) piped)
+      [:var :num] (do (core/constrain! (XmulCeqZ. x y piped)) piped)
+      [:num :var] (recur y x))))
+
+(declare $= $!= $< $> $<= $>=)
+(defn $=
+  [x y]
+  (case (typeify [x y])
+    [:var :var] (XeqY. x y)
+    [:var :num] (XeqC. x y)
+    [:num :var] (recur y x)))
+(defn $!=
+  [x y]
+  (case (typeify [x y])
+    [:var :var] (XneqY. x y)
+    [:var :num] (XneqC. x y)
+    [:num :var] (recur y x)))
+(defn $<
+  [x y]
+  (case (typeify [x y])
+    [:var :var] (XltY. x y)
+    [:var :num] (XltC. x y)
+    [:num :var] ($> y x)))
+(defn $>
+  [x y]
+  (case (typeify [x y])
+    [:var :var] (XgtY. x y)
+    [:var :num] (XgtC. x y)
+    [:num :var] ($< y x)))
+(defn $<=
+  [x y]
+  (case (typeify [x y])
+    [:var :var] (XlteqY. x y)
+    [:var :num] (XlteqC. x y)
+    [:num :var] ($>= y x)))
+(defn $>=
+  [x y]
+  (case (typeify [x y])
+    [:var :var] (XgteqY. x y)
+    [:var :num] (XgteqC. x y)
+    [:num :var] ($<= y x)))
