@@ -1,5 +1,7 @@
 (ns clocop.constraints
   "A namespace for the various constraints you can use."
+  (:use [clojure.core.match :only (match)])
+  (:require [clocop.core :as core])
   (:import
     (JaCoP.core Var IntVar)
     (JaCoP.constraints PrimitiveConstraint
@@ -17,13 +19,23 @@
                        XneqY
                        XneqC
                        
-                       XplusYeqZ
                        XplusCeqZ
+                       XplusClteqZ
                        XplusYeqC
+                       XplusYeqZ
+                       XplusYgtC
+                       XplusYlteqZ
+                       XplusYplusCeqZ
+                       XplusYplusQeqZ
+                       XplusYplusQgtC
                        Sum
                        SumWeight
                        
+                       XmulYeqZ
+                       XmulCeqZ
                        XmodYeqZ
+                       XdivYeqZ
+                       XexpYeqZ
                        
                        Min
                        Max
@@ -41,187 +53,142 @@
                        Reified
                        )))
 
-(defmacro ^:private def-primitive-constraint
-  "Private macro to help with defining primitive constraints. Specifically, helps take cases on which arguments are variables and which are constants.
+; Sample code: (+% x y := 3)
 
-Sample form:
-(def-primitive-constraint constraint-name%
-  docstring
-  [X Y Z]
-  [true true true] class-name
-  [true true false] (do something with X and Y)
-  [true false true] class-name
-  [true false false] class-name
-  ...)
-true = var. false = not var, i.e. constant.
-Automatically throws an error for type groups not covered."
-  [name docstring [& args] & clauses]
-  (let [clauses (map vec (partition 2 clauses))
-        clauses (apply concat (for [[var? constraint-type] clauses]
-                                [var? (if (sequential? constraint-type)
-                                        constraint-type
-                                        `(new ~constraint-type ~@args))]))]
-    `(defn ~name ~docstring [~@args]
-       (case (vec (map (partial instance? Var) (list ~@args)))
-         ~@clauses
-         (throw (IllegalArgumentException. (str "Wrong combination of constants and variables")))))))
+(defn- typeify
+  [args]
+  (for [x args]
+    (cond
+      (keyword? x) x
+      (instance? Var x) :var
+      (instance? Number x) :num)))
 
-;;;;; Equality and inequality constraints ;;;;;
+(defn arith%
+  "Given an arithmetic equation (with keywords as the operators), constructs the corresponding JaCoP built-in constraint.
+Operations supported:
+:+ (primitive), :* (non-primitive), :div (non-primitive), :mod (non-primitive), :exp (non-primitive)
+Sample usage: (arith% [:+ x y] := z)
+Supports most intuitive combinations of variables and numbers (plus a few in conjunction with inequalities)."
+  [[op & args :as expr] compare z]
+  (let [types (typeify args)]
+    (match [(vec expr) compare z]
+      [[:+ x y] := z] (case (typeify [x y z])
+                        [:var :var :var] (XplusYeqZ. x y z)
+                        [:var :var :num] (XplusYeqC. x y z)
+                        [:var :num :var] (XplusCeqZ. x y z))
+      [[:+ x y q] := z] (case (typeify [x y q z])
+                          [:var :var :var :var] (XplusYplusQeqZ. x y q z)
+                          [:var :var :num :var] (XplusYplusCeqZ. x y q z))
+      [[:+ x y] :<= z] (XplusYlteqZ. x y z)
+      [[:+ x y q] :> c] (XplusYplusQgtC. x y q c)
+      
+      [[:* x y] := z] (case (typeify [x y z])
+                        [:var :var :var] (XmulYeqZ. x y z)
+                        [:var :num :var] (XmulCeqZ. x y z))
+      
+      [[:div x y] := z] (XdivYeqZ. x y z)
+      
+      [[:mod x y] := z] (XmodYeqZ. x y z)
+      
+      [[:exp x y] := z] (XexpYeqZ. x y z))))
 
-(def-primitive-constraint =%
-  "(prim) Specifies an equality constraint. Can support equality between two variables, or between a variable and a constant (in either order)."
-  [X Y]
-  [true true] XeqY
-  [true false] XeqC
-  [false true] (XeqC. Y X))
+(defn sum%
+  "(not prim) Specifies that the sum of a bunch of variables equals another variable.
+Sample usage: (sum% [a b c d e] := z)
+All arguments must be variables, not numbers."
+  [args eq z]
+  (Sum. (into-array IntVar args)
+        z))
 
-(def-primitive-constraint !=%
-  "(prim) Specifies an not-equal constraint. Can support negative equality between two variables, or between a variable and a constant (in either order)."
-  [X Y]
-  [true true] XneqY
-  [true false] XneqC
-  [false true] (XneqC. Y X))
+(defn compare%
+  "(prim) Specifies x = y, x < y, x > y, x <= y, x >= y, x != y.
+Sample usage: (compare% :> x 3) or (compare% := a b)
+You can also substitute either x or y with a number."
+  [comparator x y]
+  (let [types (typeify [x y])]
+    (case comparator
+      := (case types
+           [:var :var] (XeqY. x y)
+           [:var :num] (XeqC. x y)
+           [:num :var] (recur := y x))
+      :< (case types
+           [:var :var] (XltY. x y)
+           [:var :num] (XltC. x y)
+           [:num :var] (recur :> y x))
+      :> (case types
+           [:var :var] (XgtY. x y)
+           [:var :num] (XgtC. x y)
+           [:num :var] (recur :< y x))
+      :<= (case types
+            [:var :var] (XlteqY. x y)
+            [:var :num] (XlteqC. x y)
+            [:num :var] (recur :>= y x))
+      :>= (case types
+            [:var :var] (XgteqY. x y)
+            [:var :num] (XgteqC. x y)
+            [:num :var] (recur :<= y x))
+      :!= (case types
+            [:var :var] (XneqY. x y)
+            [:var :num] (XneqY. x y)
+            [:num :var] (recur :!= y x))
+      (throw (IllegalArgumentException. (str "Operation \"" (name comparator) "\" not supported"))))))
 
-(def-primitive-constraint <%
-  "(prim) Specifies that X < Y. Y can be a variable or a constant."
-  [X Y]
-  [true true] XltY
-  [true false] XltC)
-(def-primitive-constraint >%
-  "(prim) Specifies that X > Y. Y can be a variable or a constant."
-  [X Y]
-  [true true] XgtY
-  [true false] XgtC)
-(def-primitive-constraint <=%
-  "(prim) Specifies that X <= Y. Y can be a variable or a constant."
-  [X Y]
-  [true true] XlteqY
-  [true false] XlteqC)
-(def-primitive-constraint >=%
-  "(prim) Specifies that X >= Y. Y can be a variable or a constant."
-  [X Y]
-  [true true] XgteqY
-  [true false] XgteqC)
+(defn- cartesian-product
+  [lists]
+  (cond
+    (empty? lists) '(())
+    :else (let [results (cartesian-product (rest lists))]
+            (apply concat
+                   (for [i (first lists)]
+                     (map (partial cons i) results))))))
 
-;;;;; Arithmetic ;;;;;
+(defn- pipe-helper
+  [single-expr]
+  (let [store (core/get-current-store)
+        [op & args] single-expr
+        domain-min (fn [x]
+                     (if (instance? IntVar x)
+                       (.min (.dom x))
+                       x))
+        domain-max (fn [x]
+                     (if (instance? IntVar x)
+                       (.max (.dom x))
+                       x))
+        mins (map domain-min args)
+        maxes (map domain-max args)
+        real-op (case op :+ + :* * :div / :mod mod :exp #(Math/pow %1 %2))
+        key-points (for [comb (cartesian-product (map vector mins maxes))]
+                     (apply real-op comb))
+        [final-min final-max] [(java.lang.Math/floor (double (apply min key-points)))
+                               (java.lang.Math/ceil (double (apply max key-points)))]
+        new-var (core/int-var (str "_(" (name op) " " (clojure.string/join " "
+                                                                           (map #(if (instance? IntVar %)
+                                                                                   (.id %)
+                                                                                   %) args)) ")")
+                              final-min final-max)
+        _ (core/constrain! (arith% single-expr := new-var))]
+    new-var))
 
-(def-primitive-constraint ^:private +%helper
-  "dummy docstring"
-  [X Y Z]
-  [true true true] XplusYeqZ
-  [true true false] XplusYeqC
-  [true false true] XplusCeqZ)
+(defn pipe
+  "Given an arithmetic expression (with no equals sign), returns an auxiliary variable that is equal to that equation.
 
-(defn +%
-  "(prim/global) Takes at least three arguments. In a sense, it specifies (= (apply + (butlast args)) (last args)).
+Note: this function will add some constraints and variables to your store.
 
-The returned constraint is primitive when used with three arguments, but a global constraint when used with more than three.
+Example:
+(with-store (store) (pipe [:+ [:* x y] 2]))  ; this example uses vectors but any sequence will do
+  => <IntVar>"
+  [expr]
+  (let [store (core/get-current-store)]
+    (if (not (sequential? expr))
+      expr
+      (let [expr (for [subexpr expr]
+                   (pipe subexpr))]
+        (pipe-helper expr)))))
 
-NOTE: While in general you have to only use variables rather than constants, when using only three arguments, i.e. X+Y=Z, then Y or Z (but not both) can be constants."
-  ([X Y Z]
-    (+%helper X Y Z))
-  ([A B C & moreAndZ]
-    (let [args (concat [A B C] moreAndZ)
-          _ (when (not (every? (partial instance? IntVar) args))
-              (throw (IllegalArgumentException. "When using more than three arguments, all arguments must be variables (IntVars).")))
-          left (butlast args)
-          last (last args)]
-      (Sum. (into-array IntVar left) last))))
-
-(defn weighted-sum%
-  "(global) Given an array of variables x_0, x_1, ... and an array of \"weights\" (constants) w_0, w_1, ... and a variable Z,
-specifies that w_0 * x_0 + w_1 * x_1 + ... = Z"
-  [list-of-x list-of-w Z]
-  (SumWeight. (into-array IntVar list-of-x)
-              (int-array list-of-w)
-              Z))
-
-(defn mod%
-  "(global) Specifies that X mod Y = Z"
-  [X Y Z]
-  (XmodYeqZ. X Y Z))
-
-;;;;; Min and Max ;;;;;
-
-(defn min%
-  "Takes any number of variables. In a sense, it specifies (= (apply min (butlast args)) (last args))."
-  [& args]
-  (Min. (into-array IntVar (butlast args)) (last args)))
-
-(defn max%
-  "Takes any number of variables. In a sense, it specifies (= (apply max (butlast args)) (last args))."
-  [& args]
-  (Max. (into-array IntVar (butlast args)) (last args)))
-
-;;;;; Logic constraints ;;;;;
-
-(defn and%
-  "(prim) An And statement between 0 or more primitive constraints."
-  [& constraints]
-  (And. (into-array PrimitiveConstraint constraints)))
-
-(defn or%
-  "(prim) An Or statement between 0 or more primitive constraints."
-  [& constraints]
-  (Or. (into-array PrimitiveConstraint constraints)))
-
-(defn bicond%
-  "(prim) Given two primitive constraints P and Q, specifies that P <=> Q, or P iff Q."
-  [P Q]
-  (Eq. P Q))
-
-(defn not%
-  "(prim) A \"not\" of a primitive constraint."
-  [P]
-  (Not. P))
-
-(defn if%
-  "(prim) Specifies \"if P then Q else R\" for primitive constraints P, Q, and R. The \"else\" part is optional."
-  ([if then]
-    (IfThen. if then))
-  ([if then else]
-    (IfThenElse. if then else)))
-
-(defn cond%
-  "(prim) Creates a \"cond\"-like statement by connecting if% statements together.
-
-The final \"else\" statement can be used with :else (like in cond) or just as the last argument (like in case and condp)."
-  [& clauses]
-  (case (count clauses)
-    0 (and%)
-    1 (first clauses)
-    (let [[if-this then-this] (take 2 clauses)]
-      (cond
-        (= if-this :else) then-this
-        (empty? (drop 2 clauses)) (if% if-this then-this)
-        :else (if% if-this then-this (apply cond% (drop 2 clauses)))))))
-
-;;;;; Global constraints ;;;;;
-
-(defn count-occurrences%
-  "(global) Specifies that X (a constant) occurs N times (a variable) in an array of variables."
-  [X N vars]
-  (Count. (into-array IntVar vars) N X))
-
-(defn all-different%
-  "(global) Specifies an all-different constraint."
-  [vars]
-  (Alldifferent. (into-array IntVar vars)))
-
-(defn reified%
-  "(global) Takes a primitive constraint and a variable, and specifies that the variable is equal to the 0/1 value of whether the given constraint is true."
-  [^PrimitiveConstraint constraint ^IntVar b]
-  (Reified. constraint b))
-
-(defn element-of%
-  "(global) Given an array (any seq) and two vars (i and x), specifies that the ith item in the array is equal to x.
-Note that the array can either contain only variables, or contain only concrete numbers.
-
-Another important thing is that by default, this array lookup is one-based. Add \":zero-based true\" to make it zero-based."
-  [array i x & {zero-based :zero-based}]
-  (let [array (if (instance? Var (first array))
-                (into-array IntVar array)
-                (int-array array))]
-    (if zero-based
-      (Element. i array x 1)
-      (Element. i array x))))
+(defn constrain-arith!
+  "Given an arithmetic equation, constrains that equation onto the given store.
+Example: (with-store (store) (constrain-arith! [:= x y] [:= [:+ x 2] [:* y 3]])"
+  [& exprs]
+  (let [store (core/get-current-store)]
+    (doseq [[eq & args] exprs]
+      (core/constrain! (apply compare% eq (map pipe args))))))
