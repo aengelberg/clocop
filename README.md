@@ -21,7 +21,7 @@ If you're curious, here's some sample code based on the API I have so far.
     (with-store (store)           ; initialize the variable store
       (let [x (int-var "x" 1 2)
             y (int-var "y" 3 4)]  ; initialize the variables
-        (constrain! (+% x y 6))   ; specify x + y = 6
+        (constrain! ($= ($+ x y) 6))   ; specify x + y = 6
         (solve!)))                ; searches for a solution
 
     => {"x" 2, "y" 4}
