@@ -28,7 +28,7 @@ Spaces will be removed from each line."
                     (get-in vars [(+ (* a 3) i)
                                   (+ (* b 3) j)])))
           _ (doseq [group (concat rows cols areas)]
-              (constrain! (c/all-different% group)))
+              (constrain! (apply c/$all-different group)))
           solved (solve!)]
       (vec (for [i (range 9)]
              (apply str (for [j (range 9)]

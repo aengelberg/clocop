@@ -33,7 +33,7 @@ No options and configurations are required for the Store itself, but you will co
   (Store.))
 
 (defn ^IntDomain domain
-  "Takes an arbitrary number of [min max] pairs. This function is more capable than simply entering a single min and max value in the int-var function."
+  "Takes an arbitrary number of [min max] pairs. This function is more capable than simply entering a min and max value in the int-var function."
   [& min-max-pairs]
   (let [domains (for [[min max] min-max-pairs]
                   (IntervalDomain. min max))
@@ -48,6 +48,10 @@ No options and configurations are required for the Store itself, but you will co
 Allowed argument lists:
 - (int-var min max)
 - (int-var name min max)
+
+- (int-var number)
+- (int-var name number)
+
 - (int-var domain)
 - (int-var name domain)
 
@@ -55,8 +59,13 @@ Note that the optional \"name\" field (which is an input-order-select by default
   [& args]
   (let [store (get-current-store)]
     (case (count args)
-      1 (IntVar. store (first args))
-      2 (IntVar. store (first args) (second args))
+      1 (if (instance? IntDomain (first args))
+          (IntVar. store (first args))
+          (IntVar. store (first args) (first args)))
+      2 (case [(string? (first args)) (number? (second args))]
+          [true true] (IntVar. store (first args) (second args) (second args))
+          [true false] (IntVar. store (first args) (second args))
+          [false true] (IntVar. store (first args) (second args)))
       3 (IntVar. store (first args) (second args) (nth args 2)))))
 
 (defn constrain!
