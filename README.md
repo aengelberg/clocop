@@ -57,12 +57,16 @@ so that the variables and constraints know which store you're talking about.
 Variables can only have integer values. Every variable is assigned a "domain," i.e. a finite set of integers it could possibly be.
 In JaCoP, initial domains must be assigned to variables at the time of creation.
 
+In CloCoP, a variable is created with <code>(int-var "name" min max)</code>.
+
 ###Constraints
 
 A constraint can be anywhere from "X = 3" to "(X + Y = 3 v Y != 4) => (Z = Y * 2)".
 It has two jobs:
 - On command, check if it is still feasible (e.g. in the X = 3 example, it will check if 3 is in the domain of X)
 - On command, "prune" the domains of the variables in question (e.g. in the X = 3 example, it will remove any values in the domain of X that is not 3).
+
+In CloCoP, all of the constraints are in the clocop.constraints namespace. By convention, all constraints start with a "$", i.e. <code>$=</code> for "=". This is because there would be a lot of overlap between the constraint names and the clojure.core function names.
 
 ###The Search
 
