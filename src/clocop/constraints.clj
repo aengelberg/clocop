@@ -3,7 +3,7 @@
   (:use [clojure.core.match :only (match)])
   (:require [clocop.core :as core])
   (:import
-    (JaCoP.core Var IntVar)
+    (JaCoP.core Var IntVar IntervalDomain)
     (JaCoP.constraints PrimitiveConstraint
                        
                        XeqY
@@ -31,6 +31,8 @@
                        Sum
                        SumWeight
                        
+                       AbsXeqY
+                       
                        XmulYeqZ
                        XmulCeqZ
                        XmodYeqZ
@@ -50,6 +52,7 @@
                        Alldifferent
                        Element
                        Count
+                       Among
                        Reified
                        )))
 
@@ -141,6 +144,19 @@ If you use two or three variables, this function supports some intuitive combina
   ([x & more]
     (apply $+ x (map $- more))))
 
+(defn $abs
+  "Given a variable X, returns another variable Y such that |X| = Y."
+  [x]
+  (let [xmin (domain-min x)
+        xmax (domain-max x)
+        [ymin ymax] (cond
+                      (< xmax 0) [(- xmax) (- xmin)]
+                      (< xmin 0) [0 (max (- xmin) xmax)]
+                      :else [xmin xmax])
+        y (core/int-var (str "_|" (.id x) "|") ymin ymax)]
+    (core/constrain! (AbsXeqY. x y))
+    y))
+
 (defn $weighted-sum
   "Given vars x, y, z..., and integers a, b, c..., returns a var that equals ax + by + cz + ..."
   [vars weights]
@@ -210,10 +226,6 @@ If you use two or three variables, this function supports some intuitive combina
     [:var :num] (XgteqC. x y)
     [:num :var] ($<= y x)))
 
-(defn $all-different
-  [& vars]
-  (Alldifferent. (into-array IntVar vars)))
-
 ;;;;;;;; Logic
 
 (defn $and
@@ -261,3 +273,53 @@ Note: the given constraints can only be number comparisons or logic statements."
   "Takes inputs in a similar form as \"cond\". The final \"else\" statement can be specified with :else (like in cond) or as the odd argument (like in case)"
   [& clauses]
   ($cond-helper (remove #(= % :else) clauses)))
+
+(defn $<=>
+  "Constrains a \"bicond\" constraint P <=> Q, a.k.a. P iff Q."
+  [P Q]
+  (Eq. P Q))
+
+;;;;;;;; Global constraints
+
+(defn $all-different
+  [& vars]
+  (Alldifferent. (into-array IntVar vars)))
+
+(defn $reify
+  "Sometimes it's nice to be able to manipulate the true/false value of a constraint. $reify takes a constraint, and returns a variable that will be constrained to equal the 0/1 boolean value of whether that constraint is true.
+
+i.e. ($= ($reify X) 1) would be saying that X is true.
+Note: calling constrain! on the given constraint as well as reifying it isn't entirely useful, because calling constrain! will force it to be true anyway."
+  [constraint]
+  (let [piped (core/int-var (str (gensym "_reified")) 0 1)]
+    (core/constrain! (Reified. constraint piped))
+    piped))
+
+(defn $nth
+  "Given a list of vars (or numbers) L, and a variable index i, returns a var x such that L[i] = x.
+
+Example:
+(def L [1 2 3 4 5 6])
+(def i (int-var \"i\" 0 5))
+(constrain! ($= ($nth L i) 3))"
+  [L i]
+  (let [L (if (number? (first L))
+            (int-array L)
+            (into-array IntVar L))
+        final-min (apply min (map domain-min L))
+        final-max (apply max (map domain-max L))
+        piped (core/int-var final-min final-max)]
+    (core/constrain! (Element. i L piped 1))
+    piped))
+
+(defn $occurrences
+  "Given a list of variables and a number, returns a variable X such that X = the number of occurrences of the number in the list.
+
+Note: you can also pass in a domain instead of a number, in which case it will count how many numbers are in that domain."
+  [list-of-vars item]
+  (let [list-of-vars (into-array IntVar list-of-vars)
+        piped (int-var 0 (count list-of-vars))]
+    (if (instance? IntervalDomain item)
+      (core/constrain! (Among. list-of-vars item piped))
+      (core/constrain! (Count. list-of-vars piped item)))
+    piped))
