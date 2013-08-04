@@ -37,7 +37,7 @@ I'm aware of core.logic, but there are a few ways in which, in my opinion, JaCoP
 Constraint Programming
 ======
 
-Here is a very brief guide to the key components in CP. Understanding CP a little more will help you use CloCoP and other CP libraries.
+Here is a very brief guide to the key components in CP, as well as the implementation of each component in CloCoP.
 
 ###The Store
 
@@ -68,6 +68,27 @@ It has two jobs:
 
 In CloCoP, all of the constraints are in the clocop.constraints namespace. By convention, all constraints start with a "$", i.e. <code>$=</code> for "=". This is because there would be a lot of overlap between the constraint names and the clojure.core function names.
 
+If you want to apply a constraint to the store, use <code>(constrain! ...)</code>.
+
 ###The Search
 
-The search is essentially just a depth-first search, except it always asks the constraints to prune as much as it can before branching out on different possibilities for variable values.
+The search is essentially just a depth-first search, except it always asks the constraints to prune as much as they can before branching out on different possibilities for variable values.
+
+To "naively" solve a store with constraints (i.e. the simplest possible solve), simply call <code>(solve!)</code>.
+
+The complete usage of <code>(solve!)</code> with all its keyword arguments would be as follows:
+
+    (require ['clocop.solver :as 's])
+    (with-store (store)
+      ...   ; create variables, set constraints, etc.
+      (solve! :solutions :one    ; :one or :all
+              :selector (s/selector :pick-var (s/pick-var :smallest-domain)
+                                    :in-domain (s/in-domain :min))
+              :minimize <a-var>))
+    => {...}    ; or ({...} {...} ...) if requesting :all solutions
+
+Note, in addition to the other keyword arguments, the usage of a "selector" to pick variable/value assignments to try if the solver is out of deductions to make via the constraints.
+The selector has two elements:
+- The "variable selector" (:pick-var), which chooses the variable to assign a value. A common choice for this is "smallest domain."
+- The "value selector" (:in-domain), which, after a variable has been chosen, chooses a value for that variable based on its current domain. E.g. for the vertex coloring problem, you may choose "min" to try assigning the lowest possible colors first.
+
