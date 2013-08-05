@@ -75,17 +75,13 @@
     x))
 
 (defn- pipe-helper
-  [fake-op real-op args]
+  [real-op args]
   (let [mins (map domain-min args)
         maxes (map domain-max args)
         key-points (for [comb (cartesian-product (map vector mins maxes))]
                      (apply real-op comb))
         [final-min final-max] [(apply min key-points) (apply max key-points)]]
-    (core/int-var (str "_(" (name fake-op) " "
-                       (clojure.string/join " " (map #(if (instance? IntVar %) (.id %) %)
-                                                     args))
-                       ")")
-                  final-min final-max)))
+    (core/int-var final-min final-max)))
 
 (defn- typeify
   [args]
@@ -96,16 +92,18 @@
         (instance? Var x) :var
         (instance? Number x) :num))))
 
+;;;;;; Arithmetic
+
 (defn $+
   "Given two or more variables, returns a new variable that is constrained to equal the sum of those variables.
 
-If you use two or three variables, this function supports some intuitive combinations of variables and numbers.
+If you use two or three variables, one of them may be a constant number.
 (i.e. ($+ x 1))"
   ([x y]
     (core/get-current-store)
     (let [accepted #{[:var :var] [:var :num]}
           piped (when (accepted (typeify [x y]))
-                  (pipe-helper :+ + [x y]))]
+                  (pipe-helper + [x y]))]
       (case (typeify [x y])
         [:var :var] (do (core/constrain! (XplusYeqZ. x y piped)) piped)
         [:var :num] (do (core/constrain! (XplusCeqZ. x y piped)) piped)
@@ -114,7 +112,7 @@ If you use two or three variables, this function supports some intuitive combina
     (core/get-current-store)
     (let [accepted #{[:var :var :var] [:var :var :num]}
           piped (when (accepted (typeify [x y z]))
-                  (pipe-helper :+ + [x y z]))]
+                  (pipe-helper + [x y z]))]
       (case (typeify [x y z])
         [:var :var :var] (do (core/constrain! (XplusYplusQeqZ. x y z piped)) piped)
         [:var :var :num] (do (core/constrain! (XplusYplusCeqZ. x y z piped)) piped)
@@ -125,10 +123,7 @@ If you use two or three variables, this function supports some intuitive combina
     (let [args (list* a b c d more)
           total-min (apply + (map domain-min args))
           total-max (apply + (map domain-max args))
-          z (core/int-var (str "_(+ "
-                               (clojure.string/join " " (map #(if (instance? IntVar %) (.id %) %)
-                                                             args))
-                               ")") total-min total-max)]
+          z (core/int-var total-min total-max)]
       (core/constrain! (Sum. (into-array IntVar args)
                              z))
       z)))
@@ -138,11 +133,29 @@ If you use two or three variables, this function supports some intuitive combina
   ([x]
     (let [final-min (- (domain-max x))
           final-max (- (domain-min x))
-          piped (core/int-var (str "_(- " (.id x) ")") final-min final-max)]
-      (core/constrain! ($= ($+ x piped) 0))
+          piped (core/int-var final-min final-max)]
+      (core/constrain! (XplusYeqC. x piped 0))
       piped))
   ([x & more]
     (apply $+ x (map $- more))))
+
+(defn $min
+  "Returns a variable that is constrained to equal the minimum of the given variables."
+  [& vars]
+  (let [final-min (apply min (map domain-min vars))
+        final-max (apply min (map domain-max vars))
+        piped (core/int-var final-min final-max)]
+    (core/constrain! (Min. (into-array IntVar vars) piped))
+    piped))
+
+(defn $max
+  "Returns a variable that is constrained to equal the maximum of the given variables."
+  [& vars]
+  (let [final-min (apply max (map domain-min vars))
+        final-max (apply max (map domain-max vars))
+        piped (core/int-var final-min final-max)]
+    (core/constrain! (Max. (into-array IntVar vars) piped))
+    piped))
 
 (defn $abs
   "Given a variable X, returns another variable Y such that |X| = Y."
@@ -153,7 +166,7 @@ If you use two or three variables, this function supports some intuitive combina
                       (< xmax 0) [(- xmax) (- xmin)]
                       (< xmin 0) [0 (max (- xmin) xmax)]
                       :else [xmin xmax])
-        y (core/int-var (str "_|" (.id x) "|") ymin ymax)]
+        y (core/int-var ymin ymax)]
     (core/constrain! (AbsXeqY. x y))
     y))
 
@@ -165,9 +178,7 @@ If you use two or three variables, this function supports some intuitive combina
                                 (map * (map domain-max vars) weights)))
         final-min (apply + (map first minmaxes))
         final-max (apply + (map second minmaxes))
-        var-name (str "_(+ " (clojure.string/join " "(for [[v w] (map vector vars weights)]
-                                                       (str "(* " w " " (.id v) ")"))) ")")
-        piped (core/int-var var-name final-min final-max)]
+        piped (core/int-var final-min final-max)]
     (core/constrain! (SumWeight. (into-array IntVar vars)
                                  (int-array weights)
                                  piped))
@@ -179,11 +190,18 @@ If you use two or three variables, this function supports some intuitive combina
   (core/get-current-store)
   (let [accepted #{[:var :var] [:var :num]}
         piped (when (accepted (typeify [x y]))
-                (pipe-helper :* * [x y]))]
+                (pipe-helper * [x y]))]
     (case (typeify [x y])
       [:var :var] (do (core/constrain! (XmulYeqZ. x y piped)) piped)
       [:var :num] (do (core/constrain! (XmulCeqZ. x y piped)) piped)
       [:num :var] (recur y x))))
+
+(defn $pow
+  "Given two variables X and Y, returns a new variable constrained to equal X^Y."
+  [x y]
+  (let [piped (pipe-helper #(int (Math/pow %1 %2)) [x y])]
+    (core/constrain! (XexpYeqZ. x y piped))
+    piped))
 
 (declare $and $= $!= $< $> $<= $>=)
 (defn $=
@@ -291,7 +309,7 @@ Note: the given constraints can only be number comparisons or logic statements."
 i.e. ($= ($reify X) 1) would be saying that X is true.
 Note: calling constrain! on the given constraint as well as reifying it isn't entirely useful, because calling constrain! will force it to be true anyway."
   [constraint]
-  (let [piped (core/int-var (str (gensym "_reified")) 0 1)]
+  (let [piped (core/int-var 0 1)]
     (core/constrain! (Reified. constraint piped))
     piped))
 
@@ -318,7 +336,7 @@ Example:
 Note: you can also pass in a domain instead of a number, in which case it will count how many numbers are in that domain."
   [list-of-vars item]
   (let [list-of-vars (into-array IntVar list-of-vars)
-        piped (int-var 0 (count list-of-vars))]
+        piped (core/int-var 0 (count list-of-vars))]
     (if (instance? IntervalDomain item)
       (core/constrain! (Among. list-of-vars item piped))
       (core/constrain! (Count. list-of-vars piped item)))
