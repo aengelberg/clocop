@@ -95,7 +95,7 @@ The selector has two elements:
 CloCoP Constraints
 ======
 
-###A note about "piping"
+###A note about "arithmetic piping"
 
 Suppose you want to add a constraint "X + Y = Z." In JaCoP, you'd write this:
 
@@ -121,3 +121,48 @@ which basically expands to the following:
     (XeqY. tempVar2 D)
     
 I call this concept "piping," which lets you create your constraints top-down without the need to create temporary variables.
+
+Now, on to the actual constraints...
+
+### Arithmetic
+
+Note that these aren't actual "constraints" but just piping functions, which take variables as inputs and return a new variable.
+
+- <code>($+ x y & more)</code> - sum
+- <code>($- x & more)</code> - negation or subtraction
+- <code>($* x y)</code> - multiplication
+
+### Equality
+
+Takes variables and returns a constraint.
+
+- <code>($= x y)</code> - equals
+- <code>($< x y)</code> - less than
+- <code>($<= x y)</code> - less than or equal
+- <code>($> x y)</code> - greater than
+- <code>($>= x y)</code> - greater than or equal
+- <code>($!= x y)</code> - not equal
+
+### Logic
+
+Takes constraints and returns another constraint.
+Note: logic constraints can only take equality constraints, or other logic constraints. i.e. NOT global constraints.
+
+- <code>($and & clauses)</code> - "and" statement; all of the given statements are true
+- <code>($or & clauses)</code> - "or" statement; at least one of the given statements are true
+- <code>($not P)</code> - "not / ~P" statement; P is not true.
+- <code>($if P Q R)</code> - "if/then/else" statement; if P is true, Q is true, otherwise R is true (R is optional)
+- <code>($cond ...)</code> - behaves like "cond" but made out of <code>$if</code> statements; not a macro
+- <code>($<=> P Q)</code> - "<=>/iff" statement; P is true if and only if Q is true
+
+### Global
+
+Miscellaneous constraints/piping functions which are useful in certain situations.
+
+Constraints:
+- <code>($all-different & vars)</code> - "all different" statement; none of the vars are equal to any other var.
+
+Piping functions:
+- <code>($reify c)</code> - given a constraint, returns a variable that will be 1 if the constraint is true and 0 if the constraint is false.
+- <code>($nth L i)</code> - given a list of vars (or a list of constants) and a var i, returns another var that will equal <code>L[i]</code>.
+- <code>($occurrences L i)</code> - given a list of vars, and a constant i, returns another var that will equal the amount of times i appears in L.
