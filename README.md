@@ -92,3 +92,32 @@ The selector has two elements:
 - The "variable selector" (:pick-var), which chooses the variable to assign a value. A common choice for this is "smallest domain."
 - The "value selector" (:in-domain), which, after a variable has been chosen, chooses a value for that variable based on its current domain. E.g. for the vertex coloring problem, you may choose "min" to try assigning the lowest possible colors first.
 
+CloCoP Constraints
+======
+
+###A note about "piping"
+
+Suppose you want to add a constraint "X + Y = Z." In JaCoP, you'd write this:
+
+    Constraint c = new XplusYeqZ(X, Y, Z);
+    store.impose(c);
+
+That's fine if you're using very small-scale constraints, but it gets complicated when you want to constrain something like "A + (B * C) = D."
+
+    IntVar BtimesC = new IntVar(...);
+    Constraint c1 = new XmulYeqZ(B, C, BtimesC);
+    store.impose(c1);
+    Constraint c2 = new XplusYeqZ(A, BtimesC, D);
+    store.impose(c2);
+    
+It becomes tiring to have to work from the bottom up when designing the vars and constraints. Here's how you would write the same constraint in CloCoP:
+
+    (constrain! ($= ($+ A ($* B C)) D))
+    
+which basically expands to the following:
+
+    (constrain! (XmulYeqZ. B C tempVar1))
+    (constrain! (XplusYeqZ. A tempVar1 tempVar2))
+    (XeqY. tempVar2 D)
+    
+I call this concept "piping," which lets you create your constraints top-down without the need to create temporary variables.
