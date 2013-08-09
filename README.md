@@ -118,7 +118,8 @@ which basically expands to the following:
 
     (constrain! (XmulYeqZ. B C tempVar1))
     (constrain! (XplusYeqZ. A tempVar1 tempVar2))
-    (XeqY. tempVar2 D)
+     
+    (constrain! (XeqY. tempVar2 D))
     
 I call this concept "piping," which lets you create your constraints top-down without the need to create temporary variables.
 
