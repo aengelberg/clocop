@@ -3,8 +3,6 @@ CloCoP
 
 CloCoP is a Clojure wrapper for JaCoP, which is a Java constraint programming engine. JaCoP stands for <b>JA</b>va <b>CO</b>nstraint <b>P</b>rogramming. Can you guess what CloCoP stands for?
 
-This library is currently in development and not finished, but I thought I'd put some info about it for others who happen to stumble across this repo.
-
 ###Usage
 
 Add the following to your dependencies:
