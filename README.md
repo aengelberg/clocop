@@ -7,7 +7,9 @@ This library is currently in development and not finished, but I thought I'd put
 
 ###Usage
 
-There is no easily addable Lein dependency yet.
+Add the following to your dependencies:
+
+    [clocop "0.1.0"]
 
 ###Sample code
 
