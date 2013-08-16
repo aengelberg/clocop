@@ -1,6 +1,5 @@
 (ns clocop.constraints
   "A namespace for the various constraints you can use."
-  (:use [clojure.core.match :only (match)])
   (:require [clocop.core :as core])
   (:import
     (JaCoP.core Var IntVar IntervalDomain)
