@@ -60,6 +60,6 @@
 ; 7 10 4 5
 ;    8
 
-(deftest twentysix-puzzle
-  (is (or (= "   1\r\n2 12 9 3\r\n 6   11\r\n7 10 4 5\r\n   8\r\n" (with-out-str twentysix-puzzle))
-          (= "   1\n2 12 9 3\n 6   11\n7 10 4 5\n   8\n" (with-out-str twentysix-puzzle)))))
+(deftest twentysix-puzzle-test
+  (is (or (= "   1\r\n2 12 9 3\r\n 6   11\r\n7 10 4 5\r\n   8\r\n" (with-out-str (twentysix-puzzle)))
+          (= "   1\n2 12 9 3\n 6   11\n7 10 4 5\n   8\n" (with-out-str (twentysix-puzzle))))))
