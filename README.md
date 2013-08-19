@@ -3,11 +3,11 @@ CloCoP
 
 CloCoP is a Clojure wrapper for JaCoP, which is a Java constraint programming engine. JaCoP stands for <b>JA</b>va <b>CO</b>nstraint <b>P</b>rogramming. Can you guess what CloCoP stands for?
 
-This library is currently in development and not finished, but I thought I'd put some info about it for others who happen to stumble across this repo.
-
 ###Usage
 
-There is no easily addable Lein dependency yet.
+Add the following to your dependencies:
+
+    [clocop "0.1.0"]
 
 ###Sample code
 
@@ -61,22 +61,25 @@ In CloCoP, a variable is created with <code>(int-var "name" min max)</code>.
 
 ###Constraints
 
-A constraint can be anywhere from "X = 3" to "(X + Y = 3 v Y != 4) => (Z = Y * 2)".
+A constraint can conceptually be as simple as "X = 3", or as complex as "X, Y, and Z are all different".
+
 It has two jobs:
-- On command, check if it is still feasible (e.g. in the X = 3 example, it will check if 3 is in the domain of X)
-- On command, "prune" the domains of the variables in question (e.g. in the X = 3 example, it will remove any values in the domain of X that is not 3).
+- check if it is still feasible (e.g. in the X = 3 example, it will check if 3 is in the domain of X)
+- "prune" the domains of the variables in question (e.g. in the X = 3 example, it will remove any values in the domain of X that is not 3).
 
 In CloCoP, all of the constraints are in the clocop.constraints namespace. By convention, all constraints start with a "$", i.e. <code>$=</code> for "=". This is because there would be a lot of overlap between the constraint names and the clojure.core function names.
+
+You can find a complete guide to clocop.constraints at the [bottom](https://github.com/aengelberg/clocop#arithmetic) of the page.
 
 If you want to apply a constraint to the store, use <code>(constrain! ...)</code>.
 
 ###The Search
 
-The search is essentially just a depth-first search, except it always asks the constraints to prune as much as they can before branching out on different possibilities for variable values.
+The search is essentially just a depth-first search. However, the constraints will automatically prune the variables, presumably simplifying the search tremendously.
 
-To "naively" solve a store with constraints (i.e. the simplest possible solve), simply call <code>(solve!)</code>.
+To solve your store, i.e. find a satisfying assignment for all of the variables, simply call <code>(solve!)</code>.
 
-The complete usage of <code>(solve!)</code> with all its keyword arguments would be as follows:
+However, the complete usage of <code>(solve!)</code> with all its keyword arguments would be as follows:
 
     (require ['clocop.solver :as 's])
     (with-store (store)
@@ -129,9 +132,14 @@ Now, on to the actual constraints...
 
 Note that these aren't actual "constraints" but just piping functions, which take variables as inputs and return a new variable.
 
-- <code>($+ x y & more)</code> - sum
-- <code>($- x & more)</code> - negation or subtraction
+- <code>($+ x y ...)</code> - sum
+- <code>($- x ...)</code> - negation or subtraction
 - <code>($* x y)</code> - multiplication
+- <code>($pow x y)</code> - exponent
+- <code>($min ...)</code> - min
+- <code>($max ...)</code> - max
+- <code>($abs x)</code> - absolute value
+- <code>($weighted-sum [x y z ...] [a b c ...])</code> - given some vars and some constant ints, returns <code>ax + by + cz + ...</code>
 
 ### Equality
 
@@ -164,6 +172,6 @@ Constraints:
 - <code>($all-different & vars)</code> - "all different" statement; none of the vars are equal to any other var.
 
 Piping functions:
-- <code>($reify c)</code> - given a constraint, returns a variable that will be 1 if the constraint is true and 0 if the constraint is false.
+- <code>($reify c)</code> - given a constraint, returns a variable that will be 1 if the constraint is true and 0 if the constraint is false. It can only be passed logic or equality constraints.
 - <code>($nth L i)</code> - given a list of vars (or a list of constants) and a var i, returns another var that will equal <code>L[i]</code>.
 - <code>($occurrences L i)</code> - given a list of vars, and a constant i, returns another var that will equal the amount of times i appears in L.
