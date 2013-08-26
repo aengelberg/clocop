@@ -75,25 +75,37 @@ If you want to apply a constraint to the store, use <code>(constrain! ...)</code
 
 ###The Search
 
-The search is essentially just a depth-first search. However, the constraints will automatically prune the variables, presumably simplifying the search tremendously.
+The three steps to CP search:
+Step 1: repeatedly ask the constraints to prune the domains until no further pruning can be done.
+Step 2: pick a variable V (and a possible value X for V), and branch into two new child searches:
+- one of which with X assigned to V (i.e. V has a domain with one item),
+- and the other with X removed from the domain of V.
+Step 3: repeat this process on the two child nodes (the assignment node first).
 
 To solve your store, i.e. find a satisfying assignment for all of the variables, simply call <code>(solve!)</code>.
 
-However, the complete usage of <code>(solve!)</code> with all its keyword arguments would be as follows:
-
-    (require ['clocop.solver :as 's])
-    (with-store (store)
-      ...   ; create variables, set constraints, etc.
-      (solve! :solutions :one    ; :one or :all
-              :selector (s/selector :pick-var (s/pick-var :smallest-domain)
-                                    :in-domain (s/in-domain :min))
-              :minimize <a-var>))
-    => {...}    ; or ({...} {...} ...) if requesting :all solutions
-
-Note, in addition to the other keyword arguments, the usage of a "selector" to pick variable/value assignments to try if the solver is out of deductions to make via the constraints.
-The selector has two elements:
-- The "variable selector" (:pick-var), which chooses the variable to assign a value. A common choice for this is "smallest domain."
-- The "value selector" (:in-domain), which, after a variable has been chosen, chooses a value for that variable based on its current domain. E.g. for the vertex coloring problem, you may choose "min" to try assigning the lowest possible colors first.
+Here is a complete list of the optional keyword arguments to <code>solve!</code>:
+<code>:solutions</code> will either return one (<code>:one</code>) or all (<code>:all</code>) of the solutions.
+<code>:log?</code>, when set to true, will have the search print out a log to the Console about the search.
+<code>:minimize</code> takes a variable that the search will attempt to minimize the value of.
+<code>:pick-var</code> will pick a variable (as described in Step 2). Possible choices:
+- <code>:smallest-domain</code> (default): var with smallest domain
+- <code>:most-constrained-static</code>: var with most constraints assigned to it
+- <code>:most-constrained-dynamic</code>: var with most pending constraints assigned to it
+- <code>:smallest-min</code>: var with smallest value in its domain
+- <code>:largest-domain</code>: var with largest domain size
+- <code>:largest-min</code>: var with largest minimum in its domain
+- <code>:smallest-max</code>: var with smallest maximum in its domain
+- <code>:max-regret</code>: var with biggest difference between min and max
+- <code>(list var var ...)</code>: will choose those variables in order (skipping over already-assigned vars).
+Note that this final option will induce a side effect: only the given variables will appear in the solution assignment(s).
+<code>:pick-val</code> will pick a value (as described in Step 2) for the chosen variable. Possible choices:
+- <code>:min</code> (default): minimum value
+- <code>:max</code>: maximum value
+- <code>:middle</code>: selects middle value (and later chooses the left and right values).
+- <code>:random</code>: random
+- <code>[:random N]</code>: random with seed
+- <code>:simple-random</code>: faster than <code>:random</code> but lower quality randomness 
 
 CloCoP Constraints
 ======

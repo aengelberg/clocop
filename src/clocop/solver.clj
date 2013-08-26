@@ -52,13 +52,13 @@
     :weighted-degree (WeightedDegree.)))
 
 (defn ^Indomain pick-val
-  [indomain-type & args]
+  [indomain-type]
   (case indomain-type
     :min (IndomainMin.)
     :max (IndomainMax.)
     :middle (IndomainMiddle.)
-    :list (IndomainList. (int-array (first args)) (apply pick-val (rest args)))
-    :random (case (count args)
-              0 (IndomainRandom.)
-              1 (IndomainRandom. (first args)))
-    :simple-random (IndomainSimpleRandom.)))
+    :random (IndomainRandom.)
+    :simple-random (IndomainSimpleRandom.)
+    (let [[indomain-type & args] indomain-type]
+      (case indomain-type
+        :random (IndomainRandom. (first args))))))
