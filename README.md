@@ -7,7 +7,7 @@ CloCoP is a Clojure wrapper for JaCoP, which is a Java constraint programming en
 
 Add the following to your dependencies:
 
-    [clocop "0.1.0"]
+    [clocop "0.2.0"]
 
 ###Sample code
 
