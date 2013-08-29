@@ -7,7 +7,7 @@ CloCoP is a Clojure wrapper for JaCoP, which is a Java constraint programming en
 
 Add the following to your dependencies:
 
-    [clocop "0.1.0"]
+    [clocop "0.2.0"]
 
 ###Sample code
 
@@ -85,9 +85,13 @@ Step 3: repeat this process on the two child nodes (the assignment node first).
 To solve your store, i.e. find a satisfying assignment for all of the variables, simply call <code>(solve!)</code>.
 
 Here is a complete list of the optional keyword arguments to <code>solve!</code>:
+
 <code>:solutions</code> will either return one (<code>:one</code>) or all (<code>:all</code>) of the solutions.
+
 <code>:log?</code>, when set to true, will have the search print out a log to the Console about the search.
+
 <code>:minimize</code> takes a variable that the search will attempt to minimize the value of.
+
 <code>:pick-var</code> will pick a variable (as described in Step 2). Possible choices:
 - <code>:smallest-domain</code> (default): var with smallest domain
 - <code>:most-constrained-static</code>: var with most constraints assigned to it
@@ -99,6 +103,7 @@ Here is a complete list of the optional keyword arguments to <code>solve!</code>
 - <code>:max-regret</code>: var with biggest difference between min and max
 - <code>(list var var ...)</code>: will choose those variables in order (skipping over already-assigned vars).
 Note that this final option will induce a side effect: only the given variables will appear in the solution assignment(s).
+
 <code>:pick-val</code> will pick a value (as described in Step 2) for the chosen variable. Possible choices:
 - <code>:min</code> (default): minimum value
 - <code>:max</code>: maximum value
