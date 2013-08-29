@@ -7,7 +7,7 @@ CloCoP is a Clojure wrapper for JaCoP, which is a Java constraint programming en
 
 Add the following to your dependencies:
 
-    [clocop "0.2.0"]
+    [clocop "0.2.0-SNAPSHOT"]
 
 ###Sample code
 
@@ -90,7 +90,9 @@ Here is a complete list of the optional keyword arguments to <code>solve!</code>
 
 <code>:log?</code>, when set to true, will have the search print out a log to the Console about the search.
 
-<code>:minimize</code> takes a variable that the search will attempt to minimize the value of.
+<code>:minimize</code> takes a variable that the search will attempt to minimize the value of. JaCoP will use a "Branch and Bound" search strategy. It starts by running the search on the provided constraints.
+Then it will see what the cost variable was assigned to, and then add a constraint saying that the cost variable must be less than that.
+It'll keep going until adding that extra constraint makes the search infeasible, in which case it will return the last feasible solution.
 
 <code>:pick-var</code> will pick a variable (as described in Step 2). Possible choices:
 - <code>:smallest-domain</code> (default): var with smallest domain
