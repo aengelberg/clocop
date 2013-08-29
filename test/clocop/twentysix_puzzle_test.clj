@@ -1,8 +1,7 @@
 (ns clocop.twentysix-puzzle-test
   (:use clojure.test
         clocop.core
-        clocop.constraints
-        clocop.solver))
+        clocop.constraints))
 
 ; In the 26 puzzle, there are 12 different numbers (from 1-12) arranged in a 6-point-star fashion, like so:
 ;    A
