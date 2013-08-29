@@ -174,7 +174,7 @@ Note: logic constraints can only take equality constraints, or other logic const
 - <code>($not P)</code> - "not / ~P" statement; P is not true.
 - <code>($if P Q R)</code> - "if/then/else" statement; if P is true, Q is true, otherwise R is true (R is optional)
 - <code>($cond ...)</code> - behaves like "cond" but made out of <code>$if</code> statements; not a macro
-- <code>($<=> P Q)</code> - "<=>/iff" statement; P is true if and only if Q is true
+- <code>($iff P Q)</code> - "iff/<=>" statement; P is true if and only if Q is true
 
 ### Global
 

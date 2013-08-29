@@ -291,7 +291,7 @@ Note: the given constraints can only be number comparisons or logic statements."
   [& clauses]
   ($cond-helper (remove #(= % :else) clauses)))
 
-(defn $<=>
+(defn $iff
   "Constrains a \"bicond\" constraint P <=> Q, a.k.a. P iff Q."
   [P Q]
   (Eq. P Q))
