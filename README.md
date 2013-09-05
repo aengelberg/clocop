@@ -26,6 +26,10 @@ If you're curious, here's some sample code based on the API I have so far.
 
     => {"x" 2, "y" 4}
 
+###More sample code
+
+If you'd like to see more sample code, check out the test cases in clocop/test/clocop.
+
 ###But what about core.logic?
 
 I'm aware of core.logic, but there are a few ways in which, in my opinion, JaCoP is better than MiniKanren:
