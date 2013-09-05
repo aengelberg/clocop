@@ -130,7 +130,10 @@ Although this function returns something, the function name is marked with an ex
         ]
     (cond
       (not labeling?) nil
-      :else (let [solutions (for [i (range 1 (inc (.solutionsNo listener)))
+      :else (let [solutions (for [i (if minimize
+                                      (range (.solutionsNo listener) 0 -1) ; last solutions first
+                                      (range 1 (inc (.solutionsNo listener))) ; first solutions first
+                                      )
                                   :let [domain-array (.getSolution listener i)]]
                               (let [vars (.getVariables listener)
                                     varnames (map #(.id %) vars)
