@@ -160,6 +160,11 @@ Note that these aren't actual "constraints" but just piping functions, which tak
 - <code>($abs x)</code> - absolute value
 - <code>($weighted-sum [x y z ...] [a b c ...])</code> - given some vars and some constant ints, returns <code>ax + by + cz + ...</code>
 
+NOTE: sometimes you might want to mix constant numbers into your arithmetic statements (like X + 3).
+However, these piping functions require that you only input variables, but there is one exception:
+- When using <code>$+</code> on two or three arguments, CloCoP will use the streamlined addition constraints provided in JaCoP, which are suited for small numbers of variables.
+In this case, you can replace up to one argument with a constant integer. (e.g. <code>($+ x 1)</code>, or <code>($+ 4 x y)</code>)
+
 ### Equality
 
 Takes variables and returns a constraint.
@@ -185,7 +190,9 @@ Note: logic constraints can only take equality constraints, or other logic const
 
 ### Global
 
-Miscellaneous constraints/piping functions which are useful in certain situations.
+JaCoP provides quite a few global constraints, which are expressive constraints that implement clever algorithms
+to prune domains efficiently. I ported a few of them to CloCoP, and when the opportunity presented itself, I made
+some of them into piping functions.
 
 Constraints:
 - <code>($all-different & vars)</code> - "all different" statement; none of the vars are equal to any other var.
