@@ -53,7 +53,8 @@
                        Count
                        Among
                        Reified
-                       )))
+                       )
+    JaCoP.constraints.binpacking.Binpacking))
 
 ; Sample code: (+% x y := 3)
 
@@ -340,3 +341,17 @@ Note: you can also pass in a domain instead of a number, in which case it will c
       (core/constrain! (Among. list-of-vars item piped))
       (core/constrain! (Count. list-of-vars piped item)))
     piped))
+
+(defn $binpack
+  "Keyword arguments:
+:bins - list of constant numbers, which represent the capacities of the bins.
+:sizes - list of IntVars, which represent the sizes of the items.
+:locations - list of IntVars, which dictate which bins said items will go into.
+Example: (constrain! ($binpack :bins [3 3 3], :items [x y z], :locations [x-loc y-loc z-loc]))"
+  [& {:as args}]
+  (let [bins (:bins args)
+        weights (:sizes args)
+        item-locs (:locations args)]
+    (Binpacking. (into-array IntVar item-locs)
+                 (into-array IntVar weights)
+                 (int-array bins))))
