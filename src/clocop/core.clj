@@ -86,6 +86,7 @@ The constraint doesn't take effect on the variables until you run the \"solve!\"
 The var names included in the map are all of them by default, but if you use a custom Selector, it will only return the variables you gave to the selector.
 
 Optional keyword arguments:
+  :timeout - number of seconds for the search to run before returning best solution
   :solutions - :one or :all (default :one)
   :minimize - an int-var that the search will minimize as much as possible.
   :log? - if true, the searcher will print a log about its search to the Console. (default false)
@@ -117,12 +118,15 @@ Although this function returns something, the function name is marked with an ex
                                  :pick-val the-pick-val))
         
         minimize (:minimize args)
+        timeout (:timeout args)
         log? (:log? args)
         search (DepthFirstSearch.)
         listener (.getSolutionListener search)
         _ (.setPrintInfo search (boolean log?))
         _ (when (= num-solutions :all)
             (.searchAll listener true))
+        _ (when timeout
+            (.setTimeOut search timeout))
         _ (.recordSolutions listener true)
         labeling? (if minimize
                     (.labeling search store the-selector minimize)
