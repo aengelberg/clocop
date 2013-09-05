@@ -140,20 +140,23 @@ That's fine if you're using very small-scale constraints, but it gets complicate
     Constraint c1 = new XmulYeqZ(B, C, BtimesC);
     store.impose(c1);
     Constraint c2 = new XplusYeqZ(A, BtimesC, D);
-    store.impose(c2);
+    return c2;
     
 It becomes tiring to have to work from the bottom up when designing the vars and constraints. Here's how you would write the same constraint in CloCoP:
 
-    (constrain! ($= ($+ A ($* B C)) D))
+    ($= ($+ A ($* B C)) D))
     
 which basically expands to the following:
 
-    (constrain! (XmulYeqZ. B C tempVar1))
-    (constrain! (XplusYeqZ. A tempVar1 tempVar2))
-     
-    (constrain! (XeqY. tempVar2 D))
-    
-I call this concept "piping," which lets you create your constraints top-down without the need to create temporary variables.
+    (do (constrain! (XmulYeqZ. B C tempVar1))
+        (constrain! (XplusYeqZ. A tempVar1 tempVar2))
+        (XeqY. tempVar2 D))
+
+Note that, although the tempVars now exist in the constraint store, they only exist behind the scenes and
+they will not be included in the final solution map. This is because each tempVar serves merely as a "middle man"
+to help constrain the relationship between A, B, C, and D.
+
+I call this concept "piping," which lets you create your constraints top-down without the need to create your own temporary variables.
 
 Now, on to the actual constraints...
 
