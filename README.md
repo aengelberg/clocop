@@ -98,6 +98,9 @@ Here is a complete list of the optional keyword arguments to <code>solve!</code>
 Then it will see what the cost variable was assigned to, and then add a constraint saying that the cost variable must be less than that.
 It'll keep going until adding that extra constraint makes the search infeasible, in which case it will return the last feasible solution.
 
+If you use <code>:minimize</code> as well as specifying <code>:solutions :all</code>, it will return a reversed list
+of solutions it found along the way, with the final minimized one at the head of the list.
+
 <code>:pick-var</code> will pick a variable (as described in Step 2). Possible choices:
 - <code>:smallest-domain</code> (default): var with smallest domain
 - <code>:most-constrained-static</code>: var with most constraints assigned to it
