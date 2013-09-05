@@ -342,7 +342,7 @@ Note: you can also pass in a domain instead of a number, in which case it will c
       (core/constrain! (Count. list-of-vars piped item)))
     piped))
 
-(defn $binpack
+(defn $binpacking
   "Keyword arguments:
 :bins - list of constant numbers, which represent the capacities of the bins.
 :sizes - list of IntVars, which represent the sizes of the items.
