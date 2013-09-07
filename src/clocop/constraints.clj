@@ -344,14 +344,14 @@ Note: you can also pass in a domain instead of a number, in which case it will c
 
 (defn $binpacking
   "Keyword arguments:
-:bins - list of constant numbers, which represent the capacities of the bins.
-:sizes - list of IntVars, which represent the sizes of the items.
-:locations - list of IntVars, which dictate which bins said items will go into.
+:bin-sizes - list of constant numbers, which represent the capacities of the bins.
+:item-sizes - list of IntVars, which represent the sizes of the items.
+:item-locations - list of IntVars, which dictate which bins said items will go into.
 Example: (constrain! ($binpack :bins [3 3 3], :items [x y z], :locations [x-loc y-loc z-loc]))"
   [& {:as args}]
-  (let [bins (:bins args)
-        weights (:sizes args)
-        item-locs (:locations args)]
+  (let [bins (:bin-sizes args)
+        weights (:item-sizes args)
+        item-locs (:item-locations args)]
     (Binpacking. (into-array IntVar item-locs)
                  (into-array IntVar weights)
                  (int-array bins))))

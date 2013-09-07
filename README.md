@@ -209,9 +209,9 @@ some of them into piping functions.
 
 Constraints:
 - <code>($all-different & vars)</code> - "all different" statement; none of the vars are equal to any other var.
-- <code>($binpacking :bins [bin-sizes ...] :sizes [item-sizes ...] :locations [bins-for-items ...])</code> - 
-packs items into bins. <code>:bins</code> is a seq of bin sizes (seq of constant integers). <code>:sizes</code> is a seq of item sizes (seq of variables).
-<code>:locations</code> is a seq of bin indices corresponding to the items (seq of variables).
+- <code>($binpacking :bin-sizes [...] :item-sizes [...] :item-locations [...])</code> - 
+packs items into bins. <code>:bin-sizes</code> is a seq of bin sizes (seq of constant integers). <code>:item-sizes</code> is a seq of item sizes (seq of variables).
+<code>:item-locations</code> is a seq of bin indices corresponding to the items (seq of variables).
 
 Piping functions:
 - <code>($reify c)</code> - given a constraint, returns a variable that will be 1 if the constraint is true and 0 if the constraint is false. It can only be passed logic or equality constraints.
