@@ -12,9 +12,9 @@
           xweight (int-var 1) ; x's weight
           yweight (int-var 3)
           zweight (int-var 2)]
-      (constrain! ($binpacking :bins bins
-                               :sizes [xweight yweight zweight]
-                               :locations [x y z]))
+      (constrain! ($binpacking :bin-sizes bins
+                               :item-sizes [xweight yweight zweight]
+                               :item-locations [x y z]))
       (is (= (solve!)
              {"xloc" 0
               "yloc" 2
