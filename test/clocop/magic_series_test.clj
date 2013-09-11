@@ -19,7 +19,7 @@
                         (nth L i)))) ; L[i] = # of times i occurs in L
       
       ; This is a redundant constraint, i.e. a constraint that doesn't change the feasibility of the problem
-      ; but makes the solving faster: sumation(i=0..N | i * L[i]) = N. (Think about it!)
+      ; but makes the solving faster: summation(i=0..N | i * L[i]) = N. (Think about it!)
       (constrain! ($= ($weighted-sum L (range N)) N))
       
       (let [solved (solve!)]
