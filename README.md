@@ -240,3 +240,5 @@ Conclusion
 There are many more JaCoP constraints I haven't ported to CloCoP yet. I plan to add more in the future, but let me know (e.g. in the Issues forum) if you're eager to get a specific constraint on board.
 
 Special thanks to Radoslaw Szymanek (a creator of JaCoP) for permission to put JaCoP on Clojars and create a Clojure spin-off of JaCoP.
+
+This project is under the Eclipse Public License. Contributions welcome!
