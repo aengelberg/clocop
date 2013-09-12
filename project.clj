@@ -1,4 +1,4 @@
-(defproject clocop "0.2.0"
+(defproject clocop "0.2.1-SNAPSHOT"
   :description "A Clojure wrapper for JaCoP."
   :url "http://github.com/aengelberg/clocop"
   :license {:name "Eclipse Public License"
