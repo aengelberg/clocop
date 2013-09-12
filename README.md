@@ -3,6 +3,22 @@ CloCoP
 
 CloCoP is a Clojure wrapper for JaCoP, which is a Java constraint programming engine. JaCoP stands for <b>JA</b>va <b>CO</b>nstraint <b>P</b>rogramming. Can you guess what CloCoP stands for?
 
+Constraint Programming (or CP) falls into the category of problems that can be checked easily, but not necessarily easy to come up with.
+This is a common theme behind a lot of problems such as SAT and the Graph Coloring problem.
+
+Here's an example of a Constraint Programming problem (not implemented in any specific CP language):
+
+    var X ϵ {1, 2}
+    var Y ϵ {3, 4}
+    
+    X + Y = 6
+    
+    => X = 2, Y = 4
+
+A CP library will provide a set of constraints you can specify for some integer variables, and try to solve the variables as quickly
+as possible. In JaCoP's case, the search is essentially a depth-first search with
+intelligent deduction tactics. (More information on that later.)
+
 ###Usage
 
 Add the following to your dependencies:
@@ -22,7 +38,7 @@ If you're curious, here's some sample code based on the API I have so far.
       (let [x (int-var "x" 1 2)
             y (int-var "y" 3 4)]  ; initialize the variables
         (constrain! ($= ($+ x y) 6))   ; specify x + y = 6
-        (solve!)))                ; searches for a solution
+        (solve!)))                ; searches for a solution and returns it as a map
 
     => {"x" 2, "y" 4}
 
@@ -217,3 +233,10 @@ Piping functions:
 - <code>($reify c)</code> - given a constraint, returns a variable that will be 1 if the constraint is true and 0 if the constraint is false. It can only be passed logic or equality constraints.
 - <code>($nth L i)</code> - given a list of vars (or a list of constants) and a var i, returns another var that will equal <code>L[i]</code>.
 - <code>($occurrences L i)</code> - given a list of vars, and a constant i, returns another var that will equal the amount of times i appears in L.
+
+Conclusion
+-----
+
+There are many more JaCoP constraints I haven't ported to CloCoP yet. I plan to add more in the future, but let me know (e.g. in the Issues forum) if you're eager to get a specific constraint on board.
+
+Special thanks to Radoslaw Szymanek (a creator of JaCoP) for permission to put JaCoP on Clojars and create a Clojure spin-off of JaCoP.
