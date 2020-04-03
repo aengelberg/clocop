@@ -59,7 +59,7 @@ Constraint Programming
 
 Here is a very brief guide to the key components in CP, as well as the implementation of each component in CloCoP.
 
-###The Store
+### The Store
 
 The store has one job and one job only: keep track of all the variables.
 Constraints, searches, and variables themselves do the hard work of actually solving the problems.
