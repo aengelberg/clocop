@@ -19,13 +19,13 @@ A CP library will provide a set of constraints you can specify for some integer 
 as possible. In JaCoP's case, the search is essentially a depth-first search with
 intelligent deduction tactics. (More information on that later.)
 
-###Usage
+### Usage
 
 Add the following to your dependencies:
 
     [clocop "0.2.0"]
 
-###Sample code
+### Sample code
 
 If you're curious, here's some sample code based on the API I have so far.
 
@@ -42,11 +42,11 @@ If you're curious, here's some sample code based on the API I have so far.
 
     => {"x" 2, "y" 4}
 
-###More sample code
+### More sample code
 
 If you'd like to see more sample code, check out the test cases in clocop/test/clocop.
 
-###But what about core.logic?
+### But what about core.logic?
 
 I'm aware of core.logic, but there are a few ways in which, in my opinion, JaCoP is better than MiniKanren:
 
@@ -59,7 +59,7 @@ Constraint Programming
 
 Here is a very brief guide to the key components in CP, as well as the implementation of each component in CloCoP.
 
-###The Store
+### The Store
 
 The store has one job and one job only: keep track of all the variables.
 Constraints, searches, and variables themselves do the hard work of actually solving the problems.
@@ -72,14 +72,14 @@ In CloCoP, a store is created with <code>(store)</code>. To create variables and
       (...))
 
 so that the variables and constraints know which store you're talking about.
-###Variables
+### Variables
 
 Variables can only have integer values. Every variable is assigned a "domain," i.e. a finite set of integers it could possibly be.
 In JaCoP, initial domains must be assigned to variables at the time of creation.
 
 In CloCoP, a variable is created with <code>(int-var "name" min max)</code>.
 
-###Constraints
+### Constraints
 
 A constraint can conceptually be as simple as "X = 3", or as complex as "X, Y, and Z are all different".
 
@@ -93,7 +93,7 @@ You can find a complete guide to clocop.constraints at the [bottom](https://gith
 
 If you want to apply a constraint to the store, use <code>(constrain! ...)</code>.
 
-###The Search
+### The Search
 
 The three steps to CP search:
 Step 1: repeatedly ask the constraints to prune the domains until no further pruning can be done.
@@ -143,7 +143,7 @@ Note that this final option will induce a side effect: only the given variables 
 CloCoP Constraints
 ======
 
-###A note about "arithmetic piping"
+### A note about "arithmetic piping"
 
 Suppose you want to add a constraint "X + Y = Z." In JaCoP, you'd write this:
 
